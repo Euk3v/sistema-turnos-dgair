@@ -1,0 +1,424 @@
+{% extends 'turnos/base.html' %}
+{% load static %}
+
+{% block title %}Pantalla de Turnos - SEP{% endblock %}
+
+{% block header_subtitle %}VISUALIZACIÓN DE TURNOS{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* --- RESET Y BASE --- */
+    .header, footer { display: none !important; }
+    
+    body {
+        background-color: #050505;
+        color: white;
+        overflow: hidden;
+        height: 100vh;
+        width: 100vw;
+        margin: 0;
+        font-family: 'Segoe UI', Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+
+    .tv-grid {
+        display: grid;
+        grid-template-columns: 70% 30%;
+        height: 100vh;
+        width: 100vw;
+    }
+
+    /* --- HEADER FLOTANTE --- */
+    .logo-flotante {
+        position: absolute;
+        top: 30px; left: 40px; z-index: 500;
+        display: flex; align-items: center;
+    }
+    
+    .texto-sep { font-weight: 900; font-size: 2.8rem; color: white; letter-spacing: 1px; line-height: 1; }
+    .texto-dgair { font-weight: 300; font-size: 2.8rem; color: white; letter-spacing: 1px; opacity: 0.9; line-height: 1; }
+    .linea-separadora { width: 3px; height: 40px; background-color: #A52045; margin: 0 20px; }
+
+    /* --- ZONA IZQUIERDA (LLAMADOS) --- */
+    .zona-activa {
+        padding: 120px 40px 40px 40px; 
+        background: radial-gradient(circle at center, #1a050b 0%, #000000 100%);
+        border-right: 1px solid #222;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start; /* Alineación superior */
+        align-items: center;
+        height: 100vh; 
+        box-sizing: border-box; 
+    }
+
+    /* --- TARJETA BASE (DISEÑO FLEXBOX LIMPIO) --- */
+    .tarjeta-llamado {
+        background: linear-gradient(135deg, var(--guinda) 0%, #50081c 100%);
+        border-radius: 24px;
+        width: 100%;
+        text-align: center;
+        box-shadow: 0 15px 50px rgba(0, 0, 0, 0.5);
+        border: 1px solid rgba(255,255,255,0.15);
+        
+        /* SOLUCIÓN AL TEXTO: Distribución vertical estándar */
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between; 
+        align-items: center;
+        
+        position: relative;
+        overflow: hidden;
+        /* Animación de entrada (deslizar hacia abajo) */
+        animation: entrada-suave 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+
+    /* --- NUEVA ANIMACIÓN: LATIDO SUAVE --- */
+    .recien-llegado { 
+        animation: latido-elegante 4s ease-in-out infinite; 
+        z-index: 10; 
+        border-color: rgba(255,255,255,0.3);
+    }
+    
+    @keyframes entrada-suave { 
+        from { opacity: 0; transform: translateY(-40px) scale(0.95); } 
+        to { opacity: 1; transform: translateY(0) scale(1); } 
+    }
+    
+    @keyframes latido-elegante { 
+        0% { transform: scale(1); box-shadow: 0 15px 50px rgba(0,0,0,0.5); } 
+        50% { transform: scale(1.02); box-shadow: 0 25px 70px rgba(165, 32, 69, 0.5); } /* Escala sutil + Sombra roja */
+        100% { transform: scale(1); box-shadow: 0 15px 50px rgba(0,0,0,0.5); } 
+    }
+
+    /* --- ELEMENTOS DENTRO DE LA TARJETA --- */
+    .t-codigo {
+        background: rgba(0,0,0,0.3);
+        border-radius: 50px;
+        font-weight: 700;
+        color: #ffcccc;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        border: 1px solid rgba(255,255,255,0.1);
+        margin-bottom: 5px;
+        flex-shrink: 0; /* No encoger */
+    }
+
+    .t-nombre {
+        font-weight: 800;
+        text-transform: uppercase;
+        color: white;
+        text-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        width: 95%;
+        line-height: 1.1;
+        
+        /* SOLUCIÓN FINAL TEXTO: Centrado Flex puro (Sin warnings) */
+        display: flex;
+        align-items: center;     /* Centrado vertical */
+        justify-content: center; /* Centrado horizontal */
+        flex-grow: 1;            /* Ocupar todo el espacio sobrante */
+        
+        overflow: hidden;
+        word-break: break-word; /* Romper palabras si son gigantes */
+        text-align: center;
+        margin: 10px 0;
+    }
+
+    .t-ventanilla {
+        background: white;
+        color: var(--guinda);
+        border-radius: 10px;
+        font-weight: 800;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        flex-shrink: 0; /* No encoger */
+    }
+
+    /* --- VISTAS ADAPTATIVAS (Responsive basado en altura VH) --- */
+    
+    /* VISTA 1: UNA TARJETA */
+    .vista-1 { justify-content: center; } 
+    .vista-1 .tarjeta-llamado { height: 70%; padding: 4vh; } 
+    .vista-1 .t-codigo { font-size: 4vh; padding: 1.5vh 3vw; } 
+    .vista-1 .t-nombre { font-size: 7vh; }
+    .vista-1 .t-ventanilla { font-size: 5vh; padding: 2vh 5vw; }
+
+    /* VISTA 2: DOS TARJETAS */
+    .vista-2 { justify-content: center; gap: 4vh; } 
+    .vista-2 .tarjeta-llamado { height: 38%; padding: 2.5vh; } 
+    .vista-2 .t-codigo { font-size: 3vh; padding: 1vh 2vw; } 
+    .vista-2 .t-nombre { font-size: 4.5vh; } 
+    .vista-2 .t-ventanilla { font-size: 3.5vh; padding: 1.2vh 3vw; }
+
+    /* VISTA 3: TRES TARJETAS (Arreglado para no amontonarse) */
+    .vista-3 { justify-content: flex-start; gap: 2.5vh; } 
+    .vista-3 .tarjeta-llamado { 
+        height: 28%; /* Altura fija porcentual */
+        padding: 1.5vh 2vw; 
+    } 
+    .vista-3 .t-codigo { 
+        font-size: 2.2vh; 
+        padding: 0.5vh 1.5vw; 
+    } 
+    .vista-3 .t-nombre { 
+        font-size: 3.8vh; /* Tamaño controlado */
+        line-height: 1.0; 
+    } 
+    .vista-3 .t-ventanilla { 
+        font-size: 2.5vh; 
+        padding: 0.8vh 2vw; 
+    }
+
+    /* --- SIDEBAR DERECHO --- */
+    .zona-lateral { display: flex; flex-direction: column; background-color: #0d0d0d; border-left: 1px solid #333; z-index: 501; box-shadow: -10px 0 30px rgba(0,0,0,0.5); height: 100vh; }
+    .panel-espera { height: 50%; padding: 2vh 2vw; border-bottom: 1px solid #333; display: flex; flex-direction: column; background: #111; box-sizing: border-box; }
+    #contenedorEspera { flex: 1; display: flex; flex-direction: column; gap: 1.5vh; overflow: hidden; padding-top: 10px; }
+    .panel-atencion { height: 50%; padding: 2vh 2vw; background-color: #0a0a0a; display: flex; flex-direction: column; background: linear-gradient(to bottom, #0a0a0a 0%, #051405 100%); box-sizing: border-box; }
+    #contenedorAtencion { flex: 1; display: flex; flex-direction: column; gap: 1.2vh; padding-top: 10px; min-height: 0; }
+    .titulo-seccion { color: #aaa; font-size: 1rem; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 1vh; border-left: 4px solid var(--guinda); padding-left: 15px; display: flex; justify-content: space-between; font-weight: 700; flex-shrink: 0; }
+
+    /* Listas Laterales */
+    .item-lista { display: flex; align-items: center; background: linear-gradient(90deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 100%); padding: 0 1.2vw; border-radius: 12px; border-left: 6px solid #666; box-shadow: 0 4px 10px rgba(0,0,0,0.3); color: white; position: relative; flex: 1; min-height: 0; max-height: 22%; }
+    .panel-espera .item-lista { border-left-color: var(--guinda); background: linear-gradient(90deg, rgba(165, 32, 69, 0.15) 0%, rgba(0,0,0,0) 100%); padding: 1.5vh 1.2vw; flex: initial; min-height: auto; }
+    .item-atencion { border-left: 6px solid #00e676 !important; background: linear-gradient(90deg, rgba(0, 230, 118, 0.15) 0%, rgba(0,0,0,0) 100%) !important; box-shadow: 0 0 15px rgba(0, 230, 118, 0.1) !important; border: 1px solid rgba(0, 230, 118, 0.1); flex: 1; display: flex; align-items: center; }
+    .il-codigo { font-weight: 900; color: #fff; margin-right: 15px; min-width: 75px; font-size: clamp(1rem, 2.2vh, 1.3rem); flex-shrink: 0; }
+    .il-nombre { color: rgba(255,255,255,0.95); white-space: normal; word-break: break-word; line-height: 1.1; font-size: clamp(0.85rem, 2vh, 1.1rem); font-weight: 600; flex: 1; overflow: hidden; display: flex; align-items: center; }
+    .panel-atencion .il-nombre { font-weight: 900; font-size: clamp(0.9rem, 2.2vh, 1.25rem); color: white; }
+    .item-lista span:last-child { font-weight: 800; color: #fff !important; background: rgba(0,0,0,0.3); padding: 4px 8px; border-radius: 6px; font-size: 0.85rem !important; text-transform: uppercase; letter-spacing: 1px; flex-shrink: 0; margin-left: 10px; }
+
+    #overlayInicio { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.95); z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; color: white; cursor: pointer; }
+    .boton-inicio { padding: 20px 50px; background: var(--guinda); font-size: 1.5rem; border: 2px solid white; border-radius: 50px; margin-top: 20px; animation: pulse 2s infinite; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; }
+    @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="overlayInicio" onclick="iniciarSistema()">
+    <div style="font-size: 4rem;">🔊</div>
+    <div class="boton-inicio">ACTIVAR PANTALLA</div>
+    <p style="margin-top: 20px; opacity: 0.7;">Haz clic para activar el sistema</p>
+</div>
+
+<div class="tv-grid">
+    <div class="logo-flotante">
+        <span class="texto-sep">SEP</span>
+        <div class="linea-separadora"></div>
+        <span class="texto-dgair">DGAIR</span>
+    </div>
+
+    <div class="zona-activa" id="contenedorLlamados">
+    </div>
+
+    <div class="zona-lateral">
+        <div class="panel-espera">
+            <div class="titulo-seccion">
+                <span>Próximos Turnos</span>
+                <span id="totalEspera" style="background:#444; color:white; padding:2px 10px; border-radius:10px; font-size:0.8rem; font-weight:bold;">0</span>
+            </div>
+            <div id="contenedorEspera"></div>
+        </div>
+        
+        <div class="panel-atencion">
+            <div class="titulo-seccion"><span>EN ATENCIÓN</span></div>
+            <div id="contenedorAtencion"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let ultimosTurnosCargados = [];
+    let audioContext = null;
+    let audioPermitido = false;
+    
+    // --- COLA DE AUDIO (FIFO ESTRICTA) ---
+    let colaDeAudio = []; 
+    let procesandoAudio = false; 
+
+    function iniciarSistema() {
+        try {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            audioContext = new AudioContext();
+            if (audioContext.state === 'suspended') audioContext.resume();
+            window.speechSynthesis.cancel();
+            const speech = new SpeechSynthesisUtterance(" ");
+            window.speechSynthesis.speak(speech);
+            document.getElementById('overlayInicio').style.display = 'none';
+            audioPermitido = true;
+            tocarTimbre();
+        } catch (e) { console.error("Error audio:", e); }
+    }
+
+    function tocarTimbre() {
+        if (!audioContext) return;
+        const now = audioContext.currentTime;
+        [523.25, 659.25, 783.99].forEach((freq) => {
+            const osc = audioContext.createOscillator();
+            const gain = audioContext.createGain();
+            osc.type = 'sine'; osc.frequency.value = freq;
+            gain.gain.setValueAtTime(0, now);
+            gain.gain.linearRampToValueAtTime(0.15, now + 0.1);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 2.5);
+            osc.connect(gain); gain.connect(audioContext.destination);
+            osc.start(now); osc.stop(now + 2.5);
+        });
+    }
+
+    function procesarSiguienteEnCola() {
+        if (procesandoAudio || colaDeAudio.length === 0 || !audioPermitido) return;
+        procesandoAudio = true;
+        const turno = colaDeAudio.shift(); 
+        
+        tocarTimbre();
+
+        if (turno.esReLlamada) {
+            setTimeout(() => {
+                procesandoAudio = false;
+                procesarSiguienteEnCola(); 
+            }, 2500);
+        } else {
+            setTimeout(() => {
+                leerNombre(turno);
+            }, 2000); 
+        }
+    }
+
+    function leerNombre(turno) {
+        const nombreCorto = formatearNombreVoz(turno.nombre);
+        let numVentanilla = turno.ventanilla.replace(/Ventanilla\s?/i, '');
+        const texto = `${nombreCorto}, favor de pasar a ventanilla ${numVentanilla}`;
+
+        const locucion = new SpeechSynthesisUtterance(texto);
+        locucion.lang = 'es-MX'; locucion.rate = 0.85; 
+        
+        const voces = window.speechSynthesis.getVoices();
+        let mejorVoz = voces.find(v => v.name.includes('Google') && v.lang.includes('es'));
+        if (!mejorVoz) mejorVoz = voces.find(v => v.lang.includes('es-MX'));
+        if (mejorVoz) locucion.voice = mejorVoz;
+
+        locucion.onend = function() {
+            setTimeout(() => {
+                procesandoAudio = false; 
+                procesarSiguienteEnCola(); 
+            }, 1000);
+        };
+        
+        locucion.onerror = function() {
+            procesandoAudio = false;
+            procesarSiguienteEnCola();
+        };
+
+        window.speechSynthesis.speak(locucion);
+    }
+
+    function actualizarPantalla() {
+        if (!audioPermitido) return;
+        fetch('/api/turnos/activos/')
+            .then(response => response.json())
+            .then(data => {
+                const activos = data.turnos_llamando || [];
+                const enAtencion = data.turnos_en_atencion || [];
+                const espera = data.turnos_espera || [];
+
+                detectarNuevos(activos);
+                renderizarZonaRoja(activos);
+                renderizarEnAtencion(enAtencion);
+                renderizarEspera(espera);
+            })
+            .catch(e => console.error(e));
+    }
+
+    function detectarNuevos(listaNueva) {
+        listaNueva.forEach(turnoNuevo => {
+            const turnoEnMemoria = ultimosTurnosCargados.find(t => t.numero === turnoNuevo.numero);
+            const yaEnCola = colaDeAudio.some(t => t.numero === turnoNuevo.numero);
+
+            if (!yaEnCola) {
+                if (!turnoEnMemoria) {
+                    colaDeAudio.push({ ...turnoNuevo, esReLlamada: false });
+                    procesarSiguienteEnCola();
+                } 
+                else if (turnoNuevo.intentos > (turnoEnMemoria.intentos || 1)) {
+                    colaDeAudio.push({ ...turnoNuevo, esReLlamada: true });
+                    procesarSiguienteEnCola();
+                }
+            }
+        });
+        ultimosTurnosCargados = JSON.parse(JSON.stringify(listaNueva));
+    }
+
+    function formatearNombreVoz(nombreCompleto) {
+        if (!nombreCompleto) return 'Ciudadano';
+        const partes = nombreCompleto.trim().split(/\s+/);
+        if (partes.length >= 2) return `${partes[0]} ${partes[1]}`; 
+        return partes[0];
+    }
+
+    function renderizarZonaRoja(lista) {
+        const container = document.getElementById('contenedorLlamados');
+        container.classList.remove('vista-1', 'vista-2', 'vista-3');
+
+        if (lista.length === 0) {
+            container.innerHTML = `<div class="sin-datos" style="height:100%; display:flex; flex-direction:column; justify-content:center; align-items:center;">
+                <h2 style="font-size:2.5rem; color:#888; margin-bottom:10px;">Sin turnos activos</h2>
+                <p style="font-size:1.2rem; opacity:0.5;">Por favor espere su llamado</p>
+            </div>`;
+            return;
+        }
+
+        const listaVisible = lista.slice(0, 3); 
+
+        if (listaVisible.length === 1) container.classList.add('vista-1');
+        else if (listaVisible.length === 2) container.classList.add('vista-2');
+        else container.classList.add('vista-3');
+
+        let html = '';
+        listaVisible.forEach((turno, index) => {
+            const claseFlash = index === 0 ? 'recien-llegado' : '';
+            html += `
+                <div class="tarjeta-llamado ${claseFlash}">
+                    <div class="t-codigo">${turno.numero}</div>
+                    <div class="t-nombre">${turno.nombre}</div>
+                    <div class="t-ventanilla">${turno.ventanilla}</div>
+                </div>`;
+        });
+        container.innerHTML = html;
+    }
+
+    function renderizarEspera(lista) {
+        const container = document.getElementById('contenedorEspera');
+        document.getElementById('totalEspera').innerText = lista.length;
+        if (lista.length === 0) {
+            container.innerHTML = '<div style="color:#666; text-align:center; margin-top:20px; font-style:italic;">No hay fila de espera</div>';
+            return;
+        }
+        const proximos = lista.slice(0, 4); 
+        container.innerHTML = proximos.map(t => `
+            <div class="item-lista">
+                <span class="il-codigo">${t.numero}</span>
+                <span class="il-nombre">${t.nombre}</span>
+            </div>`).join('');
+    }
+
+    function renderizarEnAtencion(lista) {
+        const container = document.getElementById('contenedorAtencion');
+        if (lista.length === 0) {
+            container.innerHTML = '<div style="color:#444; text-align:center; font-size:0.9rem; margin-top:20px; font-style:italic;">Nadie en atención</div>';
+            return;
+        }
+        const ultimosEnAtencion = lista.slice(0, 4);
+        container.innerHTML = ultimosEnAtencion.map(t => {
+            let soloNumero = t.ventanilla.match(/\d+/);
+            let ventanillaCorta = soloNumero ? `V-${soloNumero[0]}` : t.ventanilla;
+            return `
+                <div class="item-lista item-atencion">
+                    <span class="il-codigo">${t.numero}</span>
+                    <span class="il-nombre">${t.nombre}</span>
+                    <span style="font-size:1.1rem; color:#fff; margin-left:auto; font-weight:800;">${ventanillaCorta}</span>
+                </div>`;
+        }).join('');
+    }
+
+    setInterval(actualizarPantalla, 2500);
+</script>
+{% endblock %}
+

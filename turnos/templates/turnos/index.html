@@ -1,0 +1,98 @@
+{% extends 'turnos/base.html' %}
+{% load static %}
+
+{% block title %}Registro de Turno - SEP{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="card">
+        <h2 style="margin-bottom: 24px; color: var(--guinda);">Solicitar Turno</h2>
+        
+        <form id="turnoForm">
+            <div class="form-group">
+                <label for="nombre">Nombre Completo</label>
+                <input type="text" id="nombre" name="nombre" required placeholder="Ingrese su nombre completo">
+            </div>
+            
+            <div class="form-group">
+                <label for="tramite">Tipo de Trámite</label>
+                <select id="tramite" name="tramite" required>
+                    <option value="">Seleccione un trámite</option>
+                    
+                    {% for t in tramites %}
+                        <option value="{{ t.prefijo }}">
+                            {{ t.nombre }}
+                        </option>
+                    {% empty %}
+                        <option value="" disabled>No hay trámites activos disponibles</option>
+                    {% endfor %}
+                    </select>
+            </div>
+            
+            <button type="submit" class="btn btn-primary" style="width: 100%;">
+                Obtener Turno
+            </button>
+        </form>
+    </div>
+    
+    <div id="turnoGenerado" class="card" style="display: none; text-align: center;">
+        <h2 style="color: var(--guinda); margin-bottom: 16px;">¡Turno Generado!</h2>
+        <div style="background: linear-gradient(135deg, var(--guinda) 0%, var(--guinda-dark) 100%); color: white; padding: 40px; border-radius: 12px; margin: 20px 0;">
+            <p style="font-size: 18px; opacity: 0.9; margin-bottom: 8px;">Su turno es:</p>
+            <p id="numeroTurno" style="font-size: 72px; font-weight: bold; margin: 16px 0;"></p>
+            <p id="nombreCiudadano" style="font-size: 20px; opacity: 0.9;"></p>
+        </div>
+        <p style="color: var(--text-muted); margin-bottom: 20px;">Por favor espere a que su turno sea llamado en la pantalla</p>
+        <button onclick="location.reload()" class="btn btn-secondary">Solicitar Otro Turno</button>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const form = document.getElementById('turnoForm');
+    const turnoGenerado = document.getElementById('turnoGenerado');
+    
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const nombre = document.getElementById('nombre').value;
+        const tipoTramite = document.getElementById('tramite').value;
+        
+        // Validación extra: Que no envíe vacío
+        if (!tipoTramite) {
+            alert("Por favor seleccione un trámite");
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/turnos/crear/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    nombre: nombre,
+                    tipo_tramite: tipoTramite // Ahora envía el prefijo real (Ej: "REV")
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                document.getElementById('numeroTurno').textContent = data.turno.numero;
+                document.getElementById('nombreCiudadano').textContent = nombre;
+                
+                form.parentElement.style.display = 'none';
+                turnoGenerado.style.display = 'block';
+            } else {
+                // Manejo de errores que vienen del servidor
+                alert('Error: ' + (data.error || 'No se pudo generar el turno'));
+            }
+        } catch (error) {
+            console.error('Error al crear turno:', error);
+            alert('Error de conexión. Intente nuevamente.');
+        }
+    });
+</script>
+{% endblock %}
