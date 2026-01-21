@@ -4,6 +4,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 import json
 from .models import Turno, TipoTramite
+from .models import Modulo
 
 # --- VISTAS (Páginas HTML) ---
 
@@ -18,7 +19,12 @@ def pantalla(request):
 
 def ventanillas(request):
     """Menú de Selección de Ventanilla"""
-    return render(request, 'turnos/ventanillas.html')
+    # Traemos solo las ventanillas activas y las ordenamos por nombre
+    modulos = Modulo.objects.filter(activo=True).order_by('nombre')
+    
+    return render(request, 'turnos/ventanillas.html', {
+        'modulos': modulos
+    })
 
 def vista_operador(request, numero_ventanilla):
     """Panel de Control del Operador"""

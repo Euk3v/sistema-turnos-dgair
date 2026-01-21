@@ -1,67 +1,113 @@
 {% extends 'turnos/base.html' %}
+{% load static %}
 
 {% block title %}Selección de Ventanilla - SEP{% endblock %}
 
-{% block header_subtitle %}Acceso a Operadores{% endblock %}
+{% block header_subtitle %}ACCESO A OPERADORES{% endblock %}
 
 {% block extra_css %}
 <style>
+    /* ... (El resto de tus estilos siguen igual) ... */
+    
+    /* Contenedor principal */
+    .dashboard-container {
+        max-width: 1200px;
+        margin: 40px auto;
+        padding: 0 20px;
+    }
+
+    .dashboard-header {
+        text-align: center;
+        margin-bottom: 50px;
+    }
+
+    .dashboard-header h2 {
+        color: #333;
+        font-size: 2rem;
+        margin-bottom: 10px;
+    }
+
+    .dashboard-header p {
+        color: #666;
+        font-size: 1.1rem;
+    }
+
     .ventanillas-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-        gap: 20px;
-        margin-top: 40px;
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        gap: 25px;
+        perspective: 1000px;
     }
     
     .ventanilla-card {
         background: #fff;
-        border-radius: 12px;
+        border-radius: 16px;
         padding: 30px 20px;
         text-align: center;
-        border: 2px solid #ddd;
+        border: 1px solid #eee;
         cursor: pointer;
-        transition: all 0.2s;
-        text-decoration: none; /* Quitar subrayado de link */
+        text-decoration: none;
         color: #333;
-        display: block; /* Para que funcione como bloque */
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+        
+        /* Animación inicial */
+        opacity: 0;
+        transform: translateY(20px);
+        animation: fadeInUp 0.5s ease forwards;
+        transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+
+        /* CORRECCIÓN PARA QUITAR ERRORES EN VS CODE:
+           Usamos la variable --orden y calculamos el tiempo aquí en CSS 
+        */
+        animation-delay: calc(var(--orden) * 0.1s);
     }
     
-    .ventanilla-card:hover {
-        border-color: var(--guinda);
-        box-shadow: 0 5px 15px rgba(165, 32, 69, 0.15);
-        transform: translateY(-2px);
-    }
+    /* ... (El resto de estilos de hover, iconos, etc. igual) ... */
+    .ventanilla-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 6px; background: linear-gradient(90deg, var(--guinda) 0%, #d32f2f 100%); opacity: 0.7; transition: opacity 0.3s; }
+    .ventanilla-card:hover { transform: translateY(-8px); box-shadow: 0 15px 30px rgba(165, 32, 69, 0.15); border-color: rgba(165, 32, 69, 0.2); }
+    .ventanilla-card:hover::before { opacity: 1; }
+    .v-icon-circle { width: 70px; height: 70px; background: #f9f9f9; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 32px; margin-bottom: 20px; color: var(--guinda); transition: background 0.3s, color 0.3s; }
+    .ventanilla-card:hover .v-icon-circle { background: var(--guinda); color: white; }
+    .v-title { font-size: 1.4rem; font-weight: 800; margin-bottom: 5px; letter-spacing: 0.5px; }
+    .v-desc { color: #888; font-size: 0.9rem; font-weight: 500; }
+    .v-action { margin-top: 20px; padding: 8px 20px; background: transparent; border: 2px solid #eee; border-radius: 50px; font-size: 0.85rem; font-weight: 700; color: #999; transition: all 0.3s; }
+    .ventanilla-card:hover .v-action { border-color: var(--guinda); color: var(--guinda); background: rgba(165, 32, 69, 0.05); }
     
-    .v-icon { font-size: 40px; margin-bottom: 10px; color: var(--guinda); }
-    .v-title { font-size: 24px; font-weight: bold; margin-bottom: 5px; }
-    .v-desc { color: #666; font-size: 14px; }
+    @keyframes fadeInUp { to { opacity: 1; transform: translateY(0); } }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container">
-    <h2 style="text-align: center; color: var(--guinda);">Seleccione su Ventanilla</h2>
-    <div class="ventanillas-grid" id="gridVentanillas">
+<div class="dashboard-container">
+    <div class="dashboard-header">
+        <h2>Panel de Acceso</h2>
+        <p>Seleccione su estación de trabajo para iniciar sesión</p>
+    </div>
+
+    <div class="ventanillas-grid">
+        {% for m in modulos %}
+        
+        <a href="/operador/{{ m.id }}/" class="ventanilla-card" style="--orden: {{ forloop.counter0 }};">
+            <div class="v-icon-circle">🖥️</div>
+            <div class="v-title">{{ m.nombre }}</div>
+            <div class="v-desc">{{ m.siglas }}</div>
+            <div class="v-action">INGRESAR →</div>
+        </a>
+
+        {% empty %}
+        <div style="grid-column: 1/-1; text-align: center; color: #666; padding: 40px;">
+            <div style="font-size: 3rem; margin-bottom: 10px;">📭</div>
+            <p>No hay ventanillas activas registradas en el sistema.</p>
         </div>
+        {% endfor %}
+    </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
-<script>
-    const grid = document.getElementById('gridVentanillas');
-    
-    // Generamos 10 ventanillas (o las que necesites)
-    let html = '';
-    for(let i=1; i<=10; i++) {
-        // NOTA: Aquí está la magia, el href apunta a la URL dinámica que creamos
-        html += `
-            <a href="/operador/${i}/" class="ventanilla-card">
-                <div class="v-icon">🖥️</div>
-                <div class="v-title">Ventanilla ${i}</div>
-                <div class="v-desc">Ingresar al panel</div>
-            </a>
-        `;
-    }
-    grid.innerHTML = html;
-</script>
 {% endblock %}

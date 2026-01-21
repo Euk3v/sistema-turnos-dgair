@@ -1,132 +1,201 @@
 {% extends 'turnos/base.html' %}
+{% load static %}
 
 {% block title %}Operador V{{ numero_ventanilla }} - SEP{% endblock %}
 
-{% block header_subtitle %}PANEL DE OPERADOR{% endblock %}
+{% block header_subtitle %}PANEL DE CONTROL{% endblock %}
 
 {% block extra_css %}
 <style>
-    /* Estilos del Panel de Control */
-    .operador-layout {
-        max-width: 800px;
+    /* --- ESTRUCTURA FULL HEIGHT (Sin Scroll) --- */
+    body { 
+        background-color: #f4f6f8; 
+        overflow: hidden; /* Adiós barra de scroll */
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+    }
+
+    /* El bloque 'content' hereda el flex del body en base.html si está bien hecho, 
+       pero por seguridad forzamos el contenedor principal */
+    .operador-container {
+        height: calc(100vh - 120px); /* Restamos aprox la altura del header SEP */
+        width: 100%;
+        max-width: 1000px;
         margin: 0 auto;
         padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 20px; /* Espacio entre el header de estado y la tarjeta */
+        box-sizing: border-box;
     }
-    
-    .info-header {
-        background: #333;
-        color: white;
-        padding: 15px;
-        border-radius: 10px;
+
+    /* TARJETA DE ESTADO (ENCABEZADO) */
+    .status-card {
+        background: white;
+        border-radius: 12px;
+        padding: 15px 25px;
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 30px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        border-left: 6px solid #ccc;
+        flex-shrink: 0; /* No permitimos que se encoja */
     }
 
-    /* ZONA DE ACCIÓN CENTRAL */
-    .zona-accion {
+    .status-info h2 { margin: 0; font-size: 1.4rem; color: #333; }
+    .status-info p { margin: 0; color: #666; font-size: 0.9rem; }
+    
+    .status-badge {
+        padding: 6px 15px;
+        border-radius: 50px;
+        font-weight: 800;
+        font-size: 0.85rem;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        color: white;
+        background: #999;
+    }
+
+    /* --- ZONAS DE ACCIÓN (FLEXIBLES) --- */
+    .action-zone {
+        display: none;
         background: white;
-        border: 2px solid #e0e0e0;
         border-radius: 16px;
-        padding: 40px;
+        padding: 20px; /* Padding reducido para ganar espacio */
         text-align: center;
-        min-height: 300px;
-        display: flex;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+        
+        /* MAGIA FLEX: Llenar el resto de la pantalla */
+        flex: 1; 
         flex-direction: column;
-        justify-content: center;
+        justify-content: center; /* Centrar verticalmente */
         align-items: center;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+        
+        overflow-y: auto; /* Solo scroll aquí si es MUY necesario */
     }
 
-    /* ESTADO: ESPERANDO (LIBRE) */
-    .estado-libre .icono { font-size: 60px; margin-bottom: 20px; opacity: 0.5; }
-    .estado-libre h2 { color: #666; margin-bottom: 30px; }
+    .action-zone.active { display: flex; }
+
+    /* ESTADO: DISPONIBLE */
+    .zone-libre .icon-big { font-size: 4rem; color: #4CAF50; margin-bottom: 15px; display: block; }
+    .zone-libre h3 { font-size: 1.8rem; color: #333; margin-bottom: 30px; }
 
     /* ESTADO: LLAMANDO */
-    .estado-llamando { border-color: var(--guinda); }
-    .dato-turno { font-size: 4rem; font-weight: 800; color: var(--guinda); margin: 10px 0; }
-    .dato-nombre { font-size: 2rem; font-weight: 600; color: #333; margin-bottom: 10px; }
-    .badge-intentos { background: #ff9800; color: white; padding: 5px 15px; border-radius: 20px; font-weight: bold; }
+    .zone-llamando .ticket-number { font-size: clamp(3rem, 8vh, 5rem); font-weight: 900; color: var(--guinda); line-height: 1; margin-bottom: 10px; }
+    .zone-llamando .citizen-name { font-size: clamp(1.2rem, 3vh, 1.8rem); color: #333; margin-bottom: 20px; font-weight: 600; }
+    .zone-llamando .intentos-wrapper { margin-bottom: 20px; }
+    .zone-llamando .badge-intento { background: #ff9800; color: white; padding: 5px 15px; border-radius: 20px; font-size: 0.9rem; font-weight: bold; }
 
-    /* ESTADO: EN ATENCIÓN */
-    .estado-atencion { border-color: #2e7d32; background: #f1f8e9; }
-    .timer { font-family: monospace; font-size: 1.5rem; color: #2e7d32; margin-top: 20px; }
-
-    /* BOTONES GIGANTES */
-    .btn-accion {
-        padding: 15px 40px;
-        font-size: 1.2rem;
-        border-radius: 50px;
-        border: none;
-        cursor: pointer;
-        transition: transform 0.1s;
-        margin: 10px;
-        font-weight: bold;
-        display: inline-flex;
-        align-items: center;
-        gap: 10px;
+    /* ESTADO: ATENCIÓN */
+    .zone-atencion { border-top: 6px solid #2e7d32; }
+    .timer-display { 
+        font-family: 'Courier New', monospace; 
+        font-size: clamp(3rem, 6vh, 4rem); /* Timer responsivo */
+        font-weight: 700; 
+        color: #2e7d32; 
+        background: #f1f8e9;
+        display: inline-block;
+        padding: 10px 40px;
+        border-radius: 10px;
+        margin: 20px 0 30px 0;
+        border: 2px solid #c8e6c9;
     }
-    .btn-accion:active { transform: scale(0.98); }
 
-    .btn-llamar { background: var(--guinda); color: white; width: 100%; max-width: 400px; justify-content: center;}
-    .btn-rellamar { background: #ff9800; color: white; }
-    .btn-atender { background: #2e7d32; color: white; }
-    .btn-noshow { background: #d32f2f; color: white; }
-    .btn-finalizar { background: #333; color: white; width: 100%; max-width: 400px; justify-content: center;}
+    /* BOTONES MODERNOS Y COMPACTOS */
+    .btn-action {
+        border: none;
+        padding: 15px 30px; /* Un poco menos padding */
+        border-radius: 10px;
+        font-size: 1rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: transform 0.1s, box-shadow 0.2s;
+        display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+        width: 100%; max-width: 320px;
+        margin: 8px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .btn-action:active { transform: scale(0.98); }
 
-    .hidden { display: none !important; }
+    .btn-green { background: linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%); color: white; box-shadow: 0 5px 15px rgba(76, 175, 80, 0.3); }
+    .btn-green:hover { box-shadow: 0 10px 20px rgba(76, 175, 80, 0.4); transform: translateY(-2px); }
+
+    .btn-orange { background: white; color: #f57c00; border: 2px solid #f57c00; }
+    .btn-orange:hover { background: #fff3e0; }
+
+    .btn-red { background: #ffebee; color: #d32f2f; border: 2px solid #ef9a9a; padding: 12px 20px; font-size: 0.85rem; }
+    .btn-red:hover { background: #ffcdd2; }
+
+    .btn-dark { background: #333; color: white; }
+    .btn-dark:hover { background: #000; }
+
+    /* Colores de Estado */
+    .border-libre { border-left-color: #4CAF50 !important; }
+    .border-llamando { border-left-color: #ff9800 !important; }
+    .border-atencion { border-left-color: #d32f2f !important; }
 
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="operador-layout">
+<div class="operador-container">
     
-    <div class="info-header">
-        <h2 style="margin:0;">Ventanilla {{ numero_ventanilla }}</h2>
-        <div id="statusBagde" style="background:#4CAF50; padding:5px 15px; border-radius:4px; font-size:0.9rem">DISPONIBLE</div>
-    </div>
-
-    <div id="pantallaLibre" class="zona-accion estado-libre">
-        <div class="icono">📢</div>
-        <h2>Ventanilla Disponible</h2>
-        <button class="btn-accion btn-llamar" onclick="llamarSiguiente()">
-            LLAMAR SIGUIENTE TURNO
-        </button>
-        <p id="msgError" style="color:red; margin-top:10px; display:none;"></p>
-    </div>
-
-    <div id="pantallaLlamando" class="zona-accion estado-llamando hidden">
-        <span class="badge-intentos">Llamando: Intento <span id="txtIntentos">1</span>/3</span>
-        
-        <div class="dato-turno" id="txtTurno">-</div>
-        <div class="dato-nombre" id="txtNombre">-</div>
-
-        <div style="margin-top: 30px; display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;">
-            <button class="btn-accion btn-rellamar" onclick="rellamar()">
-                🔔 Volver a llamar
-            </button>
-            <button class="btn-accion btn-atender" onclick="iniciarAtencion()">
-                ✅ CIUDADANO LLEGÓ
-            </button>
+    <div id="statusBar" class="status-card border-libre">
+        <div class="status-info">
+            <h2>Ventanilla {{ numero_ventanilla }}</h2>
+            <p id="statusText">Esperando acción...</p>
         </div>
-        <div style="margin-top: 10px;">
-            <button class="btn-accion btn-noshow" onclick="finalizarTurno('NO_SHOW')" style="font-size: 0.9rem; padding: 10px 20px;">
-                ❌ No se presentó
+        <div id="statusBadge" class="status-badge" style="background: #4CAF50;">DISPONIBLE</div>
+    </div>
+
+    <div id="viewLibre" class="action-zone zone-libre active">
+        <div>
+            <span class="icon-big">📢</span>
+            <h3>Ventanilla Disponible</h3>
+            <button class="btn-action btn-green" onclick="llamarSiguiente()">
+                <span>🔔</span> LLAMAR SIGUIENTE
             </button>
         </div>
     </div>
 
-    <div id="pantallaAtencion" class="zona-accion estado-atencion hidden">
-        <h3 style="color:#2e7d32; margin:0;">EN ATENCIÓN</h3>
-        <div class="dato-turno" id="txtTurnoAtencion" style="color:#2e7d32; font-size: 3rem;">-</div>
-        <div class="dato-nombre" id="txtNombreAtencion" style="font-size: 1.5rem;">-</div>
-        
-        <div class="timer" id="cronometro">00:00</div>
+    <div id="viewLlamando" class="action-zone zone-llamando">
+        <div style="width: 100%;">
+            <div class="intentos-wrapper">
+                <span class="badge-intento">INTENTO <span id="lblIntentos">1</span> DE 3</span>
+            </div>
+            
+            <div class="ticket-number" id="lblTurnoLlamando">---</div>
+            <div class="citizen-name" id="lblNombreLlamando">---</div>
+            <p style="color:#888; margin-bottom: 20px;">Esperando al ciudadano...</p>
 
-        <div style="margin-top: 40px; width: 100%;">
-            <button class="btn-accion btn-finalizar" onclick="finalizarTurno('FINALIZADO')">
+            <div style="display:flex; flex-direction:column; align-items:center;">
+                <button class="btn-action btn-green" onclick="iniciarAtencion()">
+                    ✅ CIUDADANO LLEGÓ
+                </button>
+                <div style="display:flex; gap:10px; width:100%; max-width:320px; justify-content:center; margin-top:5px;">
+                    <button class="btn-action btn-orange" style="flex:1;" onclick="rellamar()">
+                        🔊 RE-LLAMAR
+                    </button>
+                    <button class="btn-action btn-red" style="flex:1;" onclick="finalizarTurno('NO_SHOW')">
+                        ❌ NO LLEGÓ
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="viewAtencion" class="action-zone zone-atencion">
+        <div>
+            <p style="text-transform:uppercase; letter-spacing:2px; color:#2e7d32; font-weight:bold; margin-bottom:10px;">En Atención</p>
+            <div style="font-size:clamp(2rem, 5vh, 3.5rem); font-weight:800; color:#333;" id="lblTurnoAtencion">---</div>
+            <div style="font-size:1.2rem; color:#666;" id="lblNombreAtencion">---</div>
+
+            <div class="timer-display" id="cronometro">00:00</div>
+
+            <button class="btn-action btn-dark" onclick="finalizarTurno('FINALIZADO')">
                 🏁 FINALIZAR TRÁMITE
             </button>
         </div>
@@ -137,13 +206,13 @@
 
 {% block extra_js %}
 <script>
-    // Variables de Estado Local
+    // --- VARIABLES GLOBALES ---
     const VENTANILLA_ID = Number("{{ numero_ventanilla }}");
     let turnoActual = null;
     let timerInterval;
-    let segundosTranscurridos = 0;
+    let segundos = 0;
 
-    // --- FUNCIONES API ---
+    // --- LÓGICA DE API ---
 
     async function llamarSiguiente() {
         try {
@@ -154,22 +223,19 @@
             const data = await res.json();
             
             if (data.success) {
-                turnoActual = data.turno; // Guardamos el objeto turno
-                mostrarPantalla('LLAMANDO');
-                actualizarDatosUI();
+                turnoActual = data.turno;
+                actualizarInterfaz('LLAMANDO');
             } else {
-                mostrarError(data.message || "No hay turnos");
+                alert("📭 " + (data.message || "No hay turnos en espera"));
             }
-        } catch (e) { console.error(e); }
+        } catch (e) { console.error(e); alert("Error de conexión"); }
     }
 
     async function rellamar() {
         if(!turnoActual) return;
+        turnoActual.intentos++; 
+        document.getElementById('lblIntentos').innerText = turnoActual.intentos;
         
-        // Optimista: actualizamos UI primero
-        turnoActual.intentos++;
-        actualizarDatosUI();
-
         await fetch('/api/turnos/rellamar/', {
             method: 'POST',
             body: JSON.stringify({ turno_id: turnoActual.id })
@@ -178,14 +244,13 @@
 
     async function iniciarAtencion() {
         if(!turnoActual) return;
-
+        
         await fetch('/api/turnos/atencion/', {
             method: 'POST',
             body: JSON.stringify({ turno_id: turnoActual.id })
         });
-
-        mostrarPantalla('ATENCION');
-        iniciarCronometro();
+        
+        actualizarInterfaz('ATENCION');
     }
 
     async function finalizarTurno(motivo) {
@@ -193,80 +258,71 @@
 
         await fetch('/api/turnos/finalizar/', {
             method: 'POST',
-            body: JSON.stringify({ 
-                turno_id: turnoActual.id,
-                tipo: motivo // 'FINALIZADO' o 'NO_SHOW'
-            })
+            body: JSON.stringify({ turno_id: turnoActual.id, tipo: motivo })
         });
 
-        detenerCronometro();
         turnoActual = null;
-        mostrarPantalla('LIBRE');
+        actualizarInterfaz('LIBRE');
     }
 
-    // --- MANEJO DE UI ---
+    // --- MANEJO DE INTERFAZ ---
 
-    function mostrarPantalla(estado) {
-        // Ocultar todas
-        document.getElementById('pantallaLibre').classList.add('hidden');
-        document.getElementById('pantallaLlamando').classList.add('hidden');
-        document.getElementById('pantallaAtencion').classList.add('hidden');
-        document.getElementById('msgError').style.display = 'none';
+    function actualizarInterfaz(estado) {
+        const views = {
+            'LIBRE': document.getElementById('viewLibre'),
+            'LLAMANDO': document.getElementById('viewLlamando'),
+            'ATENCION': document.getElementById('viewAtencion')
+        };
+        const statusBar = document.getElementById('statusBar');
+        const badge = document.getElementById('statusBadge');
+        const statusText = document.getElementById('statusText');
 
-        const badge = document.getElementById('statusBagde');
+        Object.values(views).forEach(el => el.classList.remove('active'));
+        detenerCronometro();
 
-        if(estado === 'LIBRE') {
-            document.getElementById('pantallaLibre').classList.remove('hidden');
-            badge.innerText = "DISPONIBLE";
-            badge.style.background = "#4CAF50";
+        if (estado === 'LIBRE') {
+            views['LIBRE'].classList.add('active');
+            statusBar.className = 'status-card border-libre';
+            badge.style.background = '#4CAF50';
+            badge.innerText = 'DISPONIBLE';
+            statusText.innerText = 'Listo para llamar.';
         } 
         else if (estado === 'LLAMANDO') {
-            document.getElementById('pantallaLlamando').classList.remove('hidden');
-            badge.innerText = "LLAMANDO...";
-            badge.style.background = "#ff9800";
-        }
+            views['LLAMANDO'].classList.add('active');
+            document.getElementById('lblTurnoLlamando').innerText = turnoActual.numero;
+            document.getElementById('lblNombreLlamando').innerText = turnoActual.nombre;
+            document.getElementById('lblIntentos').innerText = turnoActual.intentos || 1;
+
+            statusBar.className = 'status-card border-llamando';
+            badge.style.background = '#ff9800';
+            badge.innerText = 'LLAMANDO';
+            statusText.innerText = 'Esperando ciudadano...';
+        } 
         else if (estado === 'ATENCION') {
-            document.getElementById('pantallaAtencion').classList.remove('hidden');
-            badge.innerText = "OCUPADO";
-            badge.style.background = "#f44336";
+            views['ATENCION'].classList.add('active');
+            iniciarCronometro();
+            document.getElementById('lblTurnoAtencion').innerText = turnoActual.numero;
+            document.getElementById('lblNombreAtencion').innerText = turnoActual.nombre;
+
+            statusBar.className = 'status-card border-atencion';
+            badge.style.background = '#d32f2f';
+            badge.innerText = 'OCUPADO';
+            statusText.innerText = 'Trámite en curso.';
         }
     }
 
-    function actualizarDatosUI() {
-        if(!turnoActual) return;
-        
-        // Pantalla Llamando
-        document.getElementById('txtTurno').innerText = turnoActual.numero;
-        document.getElementById('txtNombre').innerText = turnoActual.nombre;
-        document.getElementById('txtIntentos').innerText = turnoActual.intentos || 1;
-
-        // Pantalla Atencion
-        document.getElementById('txtTurnoAtencion').innerText = turnoActual.numero;
-        document.getElementById('txtNombreAtencion').innerText = turnoActual.nombre;
-    }
-
-    function mostrarError(msg) {
-        const el = document.getElementById('msgError');
-        el.innerText = msg;
-        el.style.display = 'block';
-        setTimeout(() => el.style.display = 'none', 3000);
-    }
-
-    // --- CRONÓMETRO SIMPLE ---
     function iniciarCronometro() {
-        segundosTranscurridos = 0;
-        document.getElementById('cronometro').innerText = "00:00";
+        segundos = 0;
+        const display = document.getElementById('cronometro');
+        display.innerText = "00:00";
         timerInterval = setInterval(() => {
-            segundosTranscurridos++;
-            const min = Math.floor(segundosTranscurridos / 60).toString().padStart(2, '0');
-            const sec = (segundosTranscurridos % 60).toString().padStart(2, '0');
-            document.getElementById('cronometro').innerText = `${min}:${sec}`;
+            segundos++;
+            const min = Math.floor(segundos / 60).toString().padStart(2, '0');
+            const sec = (segundos % 60).toString().padStart(2, '0');
+            display.innerText = `${min}:${sec}`;
         }, 1000);
     }
 
-    function detenerCronometro() {
-        clearInterval(timerInterval);
-    }
-
+    function detenerCronometro() { clearInterval(timerInterval); }
 </script>
 {% endblock %}
